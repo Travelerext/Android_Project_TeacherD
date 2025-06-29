@@ -4,22 +4,47 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.activity.viewModels
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.room.Room
+import com.example.teacherd.chat.ChatRoot
+import com.example.teacherd.chat.ChatViewModel
+import com.example.teacherd.db.ChatDataBase
+import com.example.teacherd.repository.DeepSeekRepository
 import com.example.teacherd.ui.theme.TeacherDTheme
+import kotlin.jvm.java
 
 class MainActivity : ComponentActivity() {
+
+    private val db by lazy {
+        Room.databaseBuilder(
+            applicationContext,
+            ChatDataBase::class.java,
+            "chat-database"
+        ).build()
+    }
+
+    private val settingPreference by lazy { SettingPreference(applicationContext) }
+
+    private val deepSeekRepository by lazy { DeepSeekRepository() }
+
+    private val chatViewModel by viewModels<ChatViewModel>(
+        factoryProducer = {
+            object : ViewModelProvider.Factory {
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return ChatViewModel(db.chatDao(), settingPreference, deepSeekRepository) as T
+                }
+            }
+        }
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             TeacherDTheme {
-
+                ChatRoot(chatViewModel)
             }
         }
     }
