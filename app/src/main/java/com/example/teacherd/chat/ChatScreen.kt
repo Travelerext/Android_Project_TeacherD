@@ -21,11 +21,14 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.ModeEdit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -104,7 +107,7 @@ fun ChatScreen(
                             NavigationDrawerItem(
                                 label = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("对话 ${it.id}", modifier = Modifier.weight(0.8f))
+                                        Text(it.title, maxLines = 1, modifier = Modifier.weight(0.8f))
                                         IconButton(onClick = { viewModel.deleteChat(it) }, modifier = Modifier.weight(0.2f)) {
                                             Icon(
                                                 imageVector = Icons.Filled.Close,
@@ -131,22 +134,32 @@ fun ChatScreen(
     ) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = { Text(selectedChat.title, maxLines = 1) },
+                CenterAlignedTopAppBar(
+                    title = { Text(selectedChat.title, maxLines = 1, style = MaterialTheme.typography.titleMedium) },
                     navigationIcon = {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    drawerState.apply {
-                                        if (isClosed) open() else close()
+                        Row{
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.apply {
+                                            if (isClosed) open() else close()
+                                        }
                                     }
                                 }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Menu,
+                                    contentDescription = "More"
+                                )
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Menu,
-                                contentDescription = "More"
-                            )
+                            IconButton(onClick = {
+                                viewModel.selectChat(null)
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.ModeEdit,
+                                    contentDescription = "New chat"
+                                )
+                            }
                         }
                     },
                     actions = {
@@ -157,7 +170,6 @@ fun ChatScreen(
                             )
                         }
                     },
-                    modifier = Modifier.height(70.dp)
                 )
             }
         ) { innerPadding ->
@@ -167,7 +179,7 @@ fun ChatScreen(
                     .padding(innerPadding)
                     .padding(horizontal = 16.dp)
             ) {
-                var selectedIndex by remember { mutableIntStateOf(if (model == "deepseek-chat") 0 else 1) }
+                var selectedIndex = if (model == "deepseek-chat") 0 else 1
                 val options = listOf("DeepSeek-V3模型", "DeepSeek-R1模型")
                 Column(modifier = Modifier.fillMaxWidth()) {
                     val lazyListState = rememberLazyListState()
@@ -191,7 +203,8 @@ fun ChatScreen(
                     }
                 }
                 SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier.align(Alignment.TopCenter)
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
                         .offset(y = 30.dp)
                 ) {
                     options.forEachIndexed { index, option ->
@@ -213,8 +226,10 @@ fun ChatScreen(
                         )
                     }
                 }
-                Card(
-                    modifier = Modifier.fillMaxWidth()
+                ElevatedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
                         .align(Alignment.BottomCenter),
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {

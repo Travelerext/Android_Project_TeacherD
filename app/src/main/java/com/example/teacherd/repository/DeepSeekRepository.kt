@@ -1,6 +1,8 @@
 package com.example.teacherd.repository
 
 import com.example.teacherd.model.ChatCompletionChunk
+import com.example.teacherd.model.Message
+import com.example.teacherd.model.NoStreamChunk
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -22,11 +24,6 @@ class DeepSeekRepository {
     val mediaType = "application/json".toMediaType()
 
     val gson = Gson()
-
-    data class Message(
-        val content: String,
-        val role: String
-    )
 
     data class MessageRequest(
         val messages: List<Message>,
@@ -75,9 +72,7 @@ class DeepSeekRepository {
                         while (!source.exhausted()) {
                             val line = source.readUtf8Line()?.removePrefix("data: ")
                             if (!line.isNullOrEmpty() && line != "[DONE]") {
-                                println("line: $line")
                                 val chunk = gson.fromJson(line, ChatCompletionChunk::class.java)
-                                println("chunk: ${ chunk.choices.firstOrNull()?.delta?.content }")
                                 trySend(chunk).isSuccess
                             }
                         }
@@ -87,6 +82,66 @@ class DeepSeekRepository {
             }
         })
 
+        awaitClose { call.cancel() }
+    }.flowOn(Dispatchers.IO)
+
+    fun generateChatTitle(key: String, messages: List<ChatCompletionChunk>): Flow<String> = callbackFlow {
+        val formattedMessages = messages.map {
+            val delta = it.choices.firstOrNull()?.delta
+            Message(delta?.content ?: "", delta?.role ?: "")
+        }
+
+        val requestMessages = formattedMessages + Message(
+            content = "根据以上对话生成一句15个字以内的对话标题",
+            role = "system"
+        )
+
+        val json = gson.toJson(
+            MessageRequest(
+                messages = requestMessages,
+                model = "deepseek-chat",
+                stream = false
+            )
+        )
+
+        println(json)
+
+        val body = json.toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url("https://api.deepseek.com/chat/completions")
+            .method("POST", body)
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Accept", "application/json")
+            .addHeader("Authorization", "Bearer $key")
+            .build()
+
+        val call = httpClient.newCall(request)
+        call.enqueue(
+            object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    close(e)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.use {
+                        if (!response.isSuccessful) {
+                            println("Request failed with code ${response.code}")
+                            close()
+                        }
+                        else {
+                            response.body?.string()?.let {
+                                val json = it.removePrefix("data: ")
+                                val chunk = gson.fromJson(json, NoStreamChunk::class.java)
+                                trySend(chunk.choices.firstOrNull()?.message?.content ?: "").isSuccess
+                                println("title: ${chunk.choices.firstOrNull()?.message?.content}")
+                            } ?: close(throw Exception("Response body is null"))
+                            close()
+                        }
+                    }
+                }
+            }
+        )
         awaitClose { call.cancel() }
     }.flowOn(Dispatchers.IO)
 }

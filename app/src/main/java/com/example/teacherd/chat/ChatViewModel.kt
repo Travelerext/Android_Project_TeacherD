@@ -1,9 +1,6 @@
 package com.example.teacherd.chat
 
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.teacherd.SettingPreference
@@ -13,7 +10,6 @@ import com.example.teacherd.model.ChatCompletionChunk
 import com.example.teacherd.model.Choice
 import com.example.teacherd.model.Delta
 import com.example.teacherd.repository.DeepSeekRepository
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -60,7 +56,7 @@ class ChatViewModel(
     val selectedModel = settingPreference.getSelectedModel()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "deepseek-chat")
 
-    fun selectChat(id: Int) {
+    fun selectChat(id: Int?) {
         _selectedChatId.value = id
     }
 
@@ -121,14 +117,18 @@ class ChatViewModel(
                     tempChunks[responseIndex] = responseChunk
                 }
             }
-            with(Dispatchers.IO) {
-                if (responseChunk.choices[0].delta.role == "")
-                    dao.upsertChat(selectedChat.value.copy(chunks = newChatChunks))
-                else
-                    dao.upsertChat(selectedChat.value.copy(chunks = newChatChunks + responseChunk))
+            if (responseChunk.choices[0].delta.role == "") {
+                return@launch
             }
-            if (selectedChat.value.id == 0)
+            if (selectedChat.value.id == 0) {
+                val title = deepSeekRepository.generateChatTitle(key = apiKey.value, messages = newChatChunks + responseChunk)
+                dao.upsertChat(Chat(chunks = newChatChunks + responseChunk, title = title.first()))
+            } else {
+                dao.upsertChat(selectedChat.value.copy(chunks = newChatChunks + responseChunk))
+            }
+            if (selectedChat.value.id == 0) {
                 _selectedChatId.value = dao.getAll().first().first().id
+            }
             tempChunks.clear()
         }
     }
