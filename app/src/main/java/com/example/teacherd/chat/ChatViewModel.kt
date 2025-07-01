@@ -114,6 +114,7 @@ class ChatViewModel(
                         content = (responseChunk.choices[0].delta.content?: "") + (it.choices[0].delta.content ?: "")
                     )
                     responseChunk = it.copy(choices = listOf(it.choices[0].copy(delta = responseDelta)))
+                    responseIndex = if (responseIndex <= tempChunks.lastIndex) responseIndex else tempChunks.lastIndex
                     tempChunks[responseIndex] = responseChunk
                 }
             }
@@ -124,12 +125,12 @@ class ChatViewModel(
                 val title = deepSeekRepository.generateChatTitle(key = apiKey.value, messages = newChatChunks + responseChunk)
                 dao.upsertChat(Chat(chunks = newChatChunks + responseChunk, title = title.first()))
             } else {
-                dao.upsertChat(selectedChat.value.copy(chunks = newChatChunks + responseChunk))
+                dao.upsertChat(selectedChat.value.copy(chunks = selectedChat.value.chunks + questionChunk + responseChunk))
             }
             if (selectedChat.value.id == 0) {
                 _selectedChatId.value = dao.getAll().first().first().id
             }
-            tempChunks.clear()
+            tempChunks -= listOf(questionChunk, responseChunk)
         }
     }
 }

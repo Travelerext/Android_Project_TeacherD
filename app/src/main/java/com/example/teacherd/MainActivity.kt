@@ -12,6 +12,7 @@ import com.example.teacherd.chat.ChatRoot
 import com.example.teacherd.chat.ChatViewModel
 import com.example.teacherd.db.ChatDataBase
 import com.example.teacherd.repository.DeepSeekRepository
+import com.example.teacherd.setting.SettingViewModel
 import com.example.teacherd.ui.theme.TeacherDTheme
 import kotlin.jvm.java
 
@@ -39,12 +40,22 @@ class MainActivity : ComponentActivity() {
         }
     )
 
+    private val settingViewModel by viewModels<SettingViewModel>(
+        factoryProducer = {
+            object : ViewModelProvider.Factory {
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return SettingViewModel(settingPreference) as T
+                }
+            }
+        }
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             TeacherDTheme {
-                ChatRoot(chatViewModel)
+                ChatRoot(chatViewModel, settingViewModel)
             }
         }
     }
