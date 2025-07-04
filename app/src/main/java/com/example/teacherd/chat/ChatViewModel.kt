@@ -1,6 +1,9 @@
 package com.example.teacherd.chat
 
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.teacherd.SettingPreference
@@ -11,6 +14,7 @@ import com.example.teacherd.model.Choice
 import com.example.teacherd.model.Delta
 import com.example.teacherd.repository.DeepSeekRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
@@ -27,6 +31,10 @@ class ChatViewModel(
     private val settingPreference: SettingPreference,
     private val deepSeekRepository: DeepSeekRepository
 ): ViewModel() {
+
+    private var job by mutableStateOf<Job?>(null)
+
+    var isThinking by mutableStateOf(false)
 
     var tempChunks = mutableStateListOf<ChatCompletionChunk>()
 
@@ -58,6 +66,7 @@ class ChatViewModel(
 
     fun selectChat(id: Int?) {
         _selectedChatId.value = id
+        cancelJob()
     }
 
     fun setApiKey(apiKey: String) {
@@ -93,8 +102,16 @@ class ChatViewModel(
         }
     }
 
+    fun cancelJob() {
+        tempChunks.clear()
+        job?.cancel()
+    }
+
     fun getResponse(question: String) {
-        viewModelScope.launch {
+        if (isThinking)
+            return
+        job = viewModelScope.launch {
+            isThinking = true
             val questionChunk = ChatCompletionChunk().copy(
                 choices = listOf(Choice(delta = Delta(content = question, role = "user")))
             )
@@ -103,7 +120,11 @@ class ChatViewModel(
             var isFirstChunk = true
             var responseChunk = ChatCompletionChunk()
             var responseIndex = 0
-            deepSeekRepository.getResponseFlow(key = apiKey.value, messages = newChatChunks, model = selectedModel.value).collect {
+            deepSeekRepository.getResponseFlow(
+                key = apiKey.value,
+                messages = newChatChunks,
+                model = selectedModel.value
+            ).collect {
                 if (isFirstChunk) {
                     isFirstChunk = false
                     responseChunk = it
@@ -111,10 +132,13 @@ class ChatViewModel(
                     responseIndex = tempChunks.lastIndex
                 } else {
                     val responseDelta = responseChunk.choices[0].delta.copy(
-                        content = (responseChunk.choices[0].delta.content?: "") + (it.choices[0].delta.content ?: "")
+                        content = (responseChunk.choices[0].delta.content
+                            ?: "") + (it.choices[0].delta.content ?: "")
                     )
-                    responseChunk = it.copy(choices = listOf(it.choices[0].copy(delta = responseDelta)))
-                    responseIndex = if (responseIndex <= tempChunks.lastIndex) responseIndex else tempChunks.lastIndex
+                    responseChunk =
+                        it.copy(choices = listOf(it.choices[0].copy(delta = responseDelta)))
+                    responseIndex =
+                        if (responseIndex <= tempChunks.lastIndex) responseIndex else tempChunks.lastIndex
                     tempChunks[responseIndex] = responseChunk
                 }
             }
@@ -122,15 +146,27 @@ class ChatViewModel(
                 return@launch
             }
             if (selectedChat.value.id == 0) {
-                val title = deepSeekRepository.generateChatTitle(key = apiKey.value, messages = newChatChunks + responseChunk)
-                dao.upsertChat(Chat(chunks = newChatChunks + responseChunk, title = title.first()))
+                val title = deepSeekRepository.generateChatTitle(
+                    key = apiKey.value,
+                    messages = newChatChunks + responseChunk
+                )
+                dao.upsertChat(
+                    Chat(
+                        chunks = newChatChunks + responseChunk,
+                        title = title.first()
+                    )
+                )
             } else {
                 dao.upsertChat(selectedChat.value.copy(chunks = selectedChat.value.chunks + questionChunk + responseChunk))
             }
             if (selectedChat.value.id == 0) {
-                _selectedChatId.value = dao.getAll().first().first().id
+                _selectedChatId.value = dao.getAll().first().firstOrNull()?.id
             }
-            tempChunks -= listOf(questionChunk, responseChunk)
+            tempChunks.clear()
+        }
+
+        job?.invokeOnCompletion{
+            isThinking = false
         }
     }
 }

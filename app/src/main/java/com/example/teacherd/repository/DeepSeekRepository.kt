@@ -83,7 +83,7 @@ class DeepSeekRepository {
         })
 
         awaitClose { call.cancel() }
-    }.flowOn(Dispatchers.IO)
+    }
 
     fun generateChatTitle(key: String, messages: List<ChatCompletionChunk>): Flow<String> = callbackFlow {
         val formattedMessages = messages.map {
@@ -143,5 +143,5 @@ class DeepSeekRepository {
             }
         )
         awaitClose { call.cancel() }
-    }.flowOn(Dispatchers.IO)
+    }
 }

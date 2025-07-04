@@ -23,12 +23,14 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.ModeEdit
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -241,18 +243,29 @@ fun ChatScreen(
                             modifier = Modifier.weight(0.8f),
                         )
                         Spacer(Modifier.width(8.dp))
-                        FilledTonalButton(
-                            onClick = {
-                                viewModel.getResponse(question)
-                                question = ""
-
-                            },
-                            modifier = Modifier.weight(0.2f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Ask"
-                            )
+                        if (!viewModel.isThinking) {
+                            FilledIconButton(
+                                onClick = {
+                                    viewModel.getResponse(question)
+                                    question = ""
+                                },
+                                modifier = Modifier.weight(0.2f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "Ask"
+                                )
+                            }
+                        } else {
+                            FilledIconButton(
+                                onClick = { viewModel.cancelJob() },
+                                modifier = Modifier.weight(0.2f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Stop,
+                                    contentDescription = "Cancel"
+                                )
+                            }
                         }
                     }
                 }
