@@ -93,7 +93,7 @@ class DeepSeekRepository {
 
         val requestMessages = formattedMessages + Message(
             content = "根据以上对话生成一句15个字以内的对话标题",
-            role = "system"
+            role = "user"
         )
 
         val json = gson.toJson(

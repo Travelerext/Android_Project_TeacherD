@@ -84,4 +84,5 @@ dependencies {
     implementation("androidx.room:room-ktx:2.7.2")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.github.jeziellago:compose-markdown:0.5.7")
 }

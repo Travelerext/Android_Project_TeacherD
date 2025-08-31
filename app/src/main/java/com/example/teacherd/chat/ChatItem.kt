@@ -11,8 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.example.teacherd.model.ChatCompletionChunk
+import dev.jeziellago.compose.markdowntext.MarkdownText
 
 @Composable
 fun ChatItem(chat: ChatCompletionChunk) {
@@ -27,11 +29,19 @@ fun ChatItem(chat: ChatCompletionChunk) {
                     modifier = Modifier.align(align),
                     colors = CardDefaults.cardColors().copy(containerColor = cardColor)
                 ) {
-                    Text(
-                        text = delta.content,
-                        color = textColor,
-                        modifier = Modifier.padding(8.dp)
-                    )
+                    if (delta.role == "user") {
+                        Text(
+                            text = delta.content,
+                            color = textColor,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    } else {
+                        MarkdownText(
+                            markdown = delta.content,
+                            style = TextStyle(color = textColor),
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
                 }
             }
         }
